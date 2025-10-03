@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | ระบบจัดการข้อมูล</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 30px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        #welcomeMessage { text-align: center; color: #4CAF50; margin-bottom: 20px; }
+        .logout-btn { background-color: #f44336; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; float: right; }
+        .logout-btn:hover { background-color: #da190b; }
+        .data-section { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    
+    <script>
+      // ข้อมูลการเชื่อมต่อ (ดึงมาจาก Project Settings ของคุณ)
+      const firebaseConfig = {
+        apiKey: "AlzaSyAuuW73UKcpg9m5Uu810pv0D0BK50ExnDU", 
+        authDomain: "coffee-spark-ai-barista-ece33.firebaseapp.com", 
+        projectId: "coffee-spark-ai-barista-ece33", 
+        storageBucket: "coffee-spark-ai-barista-ece33.appspot.com",
+        messagingSenderId: "526361372769",
+        appId: "1:526361372769:web:1590fd8a8725c8f011e220" 
+      };
+      
+      // เริ่มต้น Firebase และบริการที่ใช้
+      const app = firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+
+      console.log("Firebase App และ Services ถูกเริ่มต้นแล้วบน Dashboard");
+
+      // ฟังก์ชันออกจากระบบ
+      function logout() {
+          auth.signOut()
+              .then(() => {
+                  alert("ออกจากระบบสำเร็จ");
+                  // เปลี่ยนเส้นทางกลับไปหน้า Login/Register
+                  window.location.href = 'index.html'; 
+              })
+              .catch(error => {
+                  console.error("Logout Error:", error);
+                  alert("เกิดข้อผิดพลาดในการออกจากระบบ: " + error.message);
+              });
+      }
+    </script>
+
+    <div class="container">
+        <button onclick="logout()" class="logout-btn">ออกจากระบบ</button>
+        <h1>ระบบจัดการข้อมูล</h1>
+        <p id="welcomeMessage">กำลังตรวจสอบสิทธิ์...</p>
+
+        <hr>
+
+        <div class="data-section">
+            <h2>รายการข้อมูลสินค้า (ตัวอย่าง)</h2>
+            <p><strong>TODO:</strong> ใช้ Firestore เพื่อดึงข้อมูลสินค้ามาแสดงผลในส่วนนี้</p>
+            <ul id="itemList">
+                <li>ข้อมูลจะแสดงที่นี่เมื่อดึงมาจาก Firestore สำเร็จ...</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        
+        // ตรวจสอบสถานะการ Login ทันทีที่หน้า Dashboard โหลด
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // ผู้ใช้เข้าสู่ระบบแล้ว: ตรวจสอบข้อมูลเสริม (วันหมดอายุ/Role)
+                db.collection("users").doc(user.uid).get()
+                    .then(doc => {
+                        if (doc.exists) {
+                            const userData = doc.data();
+                            const now = new Date();
+                            // แปลง Timestamp ใน Firestore เป็น Date Object เพื่อเปรียบเทียบ
+                            const expiry = userData.expiryDate.toDate(); 
+                            
+                            // 3. ตรวจสอบวันหมดอายุ
+                            if (expiry < now) {
+                                // บัญชีหมดอายุ!
+                                alert("บัญชีของคุณหมดอายุแล้ว กรุณาต่ออายุ");
+                                auth.signOut(); // บังคับออกจากระบบ
+                                window.location.href = 'index.html'; // กลับไปหน้า Login
+                            } else {
+                                // เข้าถึงได้: แสดงข้อความต้อนรับและเริ่มโหลดข้อมูล
+                                const expiryDateStr = expiry.toLocaleDateString('th-TH');
+                                document.getElementById('welcomeMessage').innerHTML = 
+                                    `ยินดีต้อนรับ <strong>${userData.email}</strong>! (สิทธิ์: ${userData.role}, หมดอายุ: ${expiryDateStr})`;
+                                
+                                // **TODO: เรียกฟังก์ชันเพื่อโหลดข้อมูล (เช่น loadItems())**
+                                // loadItems();
+                                
+                            }
+                        } else {
+                            // ไม่พบข้อมูลเสริมใน Firestore (ควรเกิดขึ้นได้ยาก)
+                            auth.signOut();
+                            window.location.href = 'index.html';
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching user data:", error);
+                        auth.signOut();
+                        window.location.href = 'index.html';
+                    });
+
+            } else {
+                // ผู้ใช้ไม่ได้ Login
+                alert("กรุณาเข้าสู่ระบบก่อนจึงจะเข้าถึงหน้านี้ได้");
+                window.location.href = 'index.html'; // กลับไปหน้า Login
+            }
+        });
+
+        // -----------------------------------------------------
+        // 4. ตัวอย่างฟังก์ชันสำหรับดึงข้อมูลจาก Firestore (CRUD: Read)
+        // -----------------------------------------------------
+        
+        /* function loadItems() {
+            const itemList = document.getElementById('itemList');
+            itemList.innerHTML = '<li>กำลังโหลดข้อมูล...</li>'; 
+
+            // ตัวอย่างการดึงข้อมูลทั้งหมดจาก Collection ชื่อ 'items'
+            db.collection("items").get().then((querySnapshot) => {
+                itemList.innerHTML = ''; // เคลียร์ข้อความ "กำลังโหลด"
+                if (querySnapshot.empty) {
+                    itemList.innerHTML = '<li>ยังไม่มีข้อมูลสินค้า</li>';
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    // สร้างรายการ <li> แสดงข้อมูล
+                    const itemData = doc.data();
+                    const li = document.createElement('li');
+                    li.textContent = `รหัส: ${doc.id}, ชื่อ: ${itemData.name}, ราคา: ${itemData.price} บาท`;
+                    itemList.appendChild(li);
+                });
+            }).catch(error => {
+                console.error("Error loading items:", error);
+                itemList.innerHTML = '<li>เกิดข้อผิดพลาดในการโหลดข้อมูล</li>';
+            });
+        }
+        */
+
+    </script>
+</body>
+</html>
