@@ -46,7 +46,7 @@
         <input type="email" id="regEmail" placeholder="Email" required>
         <input type="password" id="regPassword" placeholder="Password (ขั้นต่ำ 6 ตัว)" required>
         <button onclick="registerUser()">ลงทะเบียน</button>
-        <p id="regMessage"></p>
+        <p id="regMessage" class="error"></p>
 
         <hr style="margin: 30px 0;">
 
@@ -54,9 +54,99 @@
         <input type="email" id="loginEmail" placeholder="Email" required>
         <input type="password" id="loginPassword" placeholder="Password" required>
         <button onclick="loginUser()">เข้าสู่ระบบ</button>
-        <p id="loginMessage"></p>
+        <p id="loginMessage" class="error"></p>
     </div>
 
-    <script src="app.js"></script> 
+    <script>
+        // ฟังก์ชันลงทะเบียนผู้ใช้ใหม่
+        function registerUser() {
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const regMessage = document.getElementById('regMessage');
+
+            regMessage.className = 'error';
+            if (!email || !password || password.length < 6) {
+                regMessage.textContent = 'กรุณากรอก Email และ Password ให้ถูกต้อง (Password ขั้นต่ำ 6 ตัว)';
+                return;
+            }
+            
+            // 1. สร้างบัญชีใน Firebase Authentication
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    
+                    // กำหนดวันหมดอายุ (หมดอายุใน 30 วันนับจากนี้)
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 30); 
+
+                    // 2. บันทึกข้อมูลเสริม (วันหมดอายุ, role) ลงใน Firestore
+                    return db.collection("users").doc(user.uid).set({
+                        email: user.email,
+                        role: "standard", 
+                        expiryDate: firebase.firestore.Timestamp.fromDate(expiryDate) 
+                    });
+                })
+                .then(() => {
+                    // กำหนด expiryDate อีกครั้งเพื่อให้แสดงผลใน .then() ได้
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 30); 
+                    
+                    regMessage.className = 'success';
+                    regMessage.textContent = `ลงทะเบียนสำเร็จ! บัญชีของคุณมีอายุถึง ${expiryDate.toLocaleDateString('th-TH')} `;
+                })
+                .catch((error) => {
+                    regMessage.className = 'error';
+                    regMessage.textContent = 'ลงทะเบียนล้มเหลว: ' + error.message;
+                });
+        }
+
+        // ฟังก์ชันเข้าสู่ระบบ
+        function loginUser() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const loginMessage = document.getElementById('loginMessage');
+
+            loginMessage.className = 'error';
+            if (!email || !password) {
+                loginMessage.textContent = 'กรุณากรอก Email และ Password';
+                return;
+            }
+
+            // 1. เข้าสู่ระบบด้วย Firebase Authentication
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+
+                    // 2. ตรวจสอบข้อมูลเสริมและวันหมดอายุใน Firestore
+                    return db.collection("users").doc(user.uid).get();
+                })
+                .then((doc) => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        const now = new Date();
+                        const expiry = userData.expiryDate.toDate(); // แปลง Timestamp เป็น Date Object
+                        
+                        // 3. ตรวจสอบวันหมดอายุ
+                        if (expiry < now) {
+                            // บัญชีหมดอายุ! ให้ออกจากระบบทันที
+                            auth.signOut();
+                            loginMessage.textContent = 'เข้าสู่ระบบล้มเหลว: บัญชีของคุณหมดอายุแล้ว กรุณาติดต่อผู้ดูแลระบบ';
+                        } else {
+                            // เข้าสู่ระบบสำเร็จและยังไม่หมดอายุ
+                            loginMessage.className = 'success';
+                            loginMessage.textContent = 'เข้าสู่ระบบสำเร็จ! สวัสดี ' + userData.email + ' (หมดอายุ: ' + expiry.toLocaleDateString('th-TH') + ')';
+                            // **TODO: เปลี่ยนเส้นทางไปยังหน้า Dashboard ได้ที่นี่**
+                        }
+                    } else {
+                        // ไม่พบข้อมูลเสริมใน Firestore
+                        loginMessage.textContent = 'เข้าสู่ระบบล้มเหลว: ไม่พบข้อมูลผู้ใช้';
+                    }
+                })
+                .catch((error) => {
+                    loginMessage.className = 'error';
+                    loginMessage.textContent = 'เข้าสู่ระบบล้มเหลว: ' + error.message;
+                });
+        }
+    </script>
 </body>
 </html>
