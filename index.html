@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการผู้ใช้ | Coffee Spark AI Barista</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script>
+      // ข้อมูลการเชื่อมต่อ (ดึงมาจาก Project Settings ของคุณ)
+      const firebaseConfig = {
+        apiKey: "AlzaSyAuuW73UKcpg9m5Uu810pv0D0BK50ExnDU", 
+        authDomain: "coffee-spark-ai-barista-ece33.firebaseapp.com", 
+        projectId: "coffee-spark-ai-barista-ece33", 
+        storageBucket: "coffee-spark-ai-barista-ece33.appspot.com",
+        messagingSenderId: "526361372769",
+        appId: "1:526361372769:web:1590fd8a8725c8f011e220" 
+      };
+      
+      // เริ่มต้น Firebase และบริการที่ใช้
+      const app = firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+
+      console.log("Firebase App และ Services ถูกเริ่มต้นแล้ว");
+    </script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        input[type="email"], input[type="password"] { width: 100%; padding: 10px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #4CAF50; color: white; padding: 12px 20px; margin: 10px 0; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background-color: #45a049; }
+        #regMessage, #loginMessage { margin-top: 10px; text-align: center; }
+        .error { color: #f44336; }
+        .success { color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ลงทะเบียน (Register)</h2>
+        <input type="email" id="regEmail" placeholder="Email" required>
+        <input type="password" id="regPassword" placeholder="Password (ขั้นต่ำ 6 ตัว)" required>
+        <button onclick="registerUser()">ลงทะเบียน</button>
+        <p id="regMessage"></p>
+
+        <hr style="margin: 30px 0;">
+
+        <h2>เข้าสู่ระบบ (Login)</h2>
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button onclick="loginUser()">เข้าสู่ระบบ</button>
+        <p id="loginMessage"></p>
+    </div>
+
+    <script src="app.js"></script> 
+</body>
+</html>
