@@ -17,18 +17,19 @@
         .logout-btn { background-color: #f44336; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; float: right; }
         .logout-btn:hover { background-color: #da190b; }
         .data-section { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 4px; }
+        .action-btn { border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer; border-radius: 3px; color: white;}
+        .edit-btn { background-color: #2196F3; }
+        .delete-btn { background-color: #f44336; }
     </style>
 </head>
 <body>
     
     <script>
-      // 🔥 ข้อมูลการเชื่อมต่อ Firebase ที่ถูกแก้ไขด้วย API Key และ Storage Bucket ที่ถูกต้องแล้ว
+      // 🔥 ข้อมูลการเชื่อมต่อ Firebase
       const firebaseConfig = {
-        // **คีย์นี้ถูกแก้ไขแล้ว**
         apiKey: "AIzaSyAuuW73UKcpG9m5Uu81opv0D0BK50ExnDU", 
         authDomain: "coffee-spark-ai-barista-ece33.firebaseapp.com", 
         projectId: "coffee-spark-ai-barista-ece33", 
-        // **Storage Bucket ถูกแก้ไขแล้ว**
         storageBucket: "coffee-spark-ai-barista-ece33.firebasestorage.app", 
         messagingSenderId: "526361372769",
         appId: "1:526361372769:web:1590fd8a8725c8f011e220" 
@@ -39,14 +40,11 @@
       const auth = firebase.auth();
       const db = firebase.firestore();
 
-      console.log("Firebase App และ Services ถูกเริ่มต้นแล้วบน Dashboard");
-
       // ฟังก์ชันออกจากระบบ
       function logout() {
           auth.signOut()
               .then(() => {
                   alert("ออกจากระบบสำเร็จ");
-                  // เปลี่ยนเส้นทางกลับไปหน้า Login/Register
                   window.location.href = 'index.html'; 
               })
               .catch(error => {
@@ -63,10 +61,18 @@
 
         <hr>
 
+        <div class="data-section" style="margin-bottom: 30px;">
+            <h2>เพิ่มข้อมูลสินค้าใหม่ (Add Key)</h2>
+            <input type="text" id="itemName" placeholder="ชื่อสินค้า" style="padding: 8px; width: 150px; margin-right: 10px;">
+            <input type="number" id="itemPrice" placeholder="ราคา" style="padding: 8px; width: 80px; margin-right: 10px;">
+            <label for="itemExpiryDate">วันหมดอายุ:</label>
+            <input type="date" id="itemExpiryDate" style="padding: 8px; margin-right: 10px;">
+            <button onclick="addItem()" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">เพิ่มสินค้า</button>
+        </div>
+
         <div class="data-section">
-            <h2>รายการข้อมูลสินค้า (ตัวอย่าง)</h2>
-            <p><strong>TODO:</strong> ใช้ Firestore เพื่อดึงข้อมูลสินค้ามาแสดงผลในส่วนนี้</p>
-            <ul id="itemList">
+            <h2>รายการข้อมูลสินค้า (Collection: items)</h2>
+            <ul id="itemList" style="list-style-type: none; padding: 0;">
                 <li>ข้อมูลจะแสดงที่นี่เมื่อดึงมาจาก Firestore สำเร็จ...</li>
             </ul>
         </div>
@@ -75,7 +81,10 @@
 
     <script>
         
-        // ตรวจสอบสถานะการ Login ทันทีที่หน้า Dashboard โหลด
+        // *****************************************************
+        // ส่วนจัดการ Authentication และ Authorization
+        // *****************************************************
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 // ผู้ใช้เข้าสู่ระบบแล้ว: ตรวจสอบข้อมูลเสริม (วันหมดอายุ/Role)
@@ -84,74 +93,172 @@
                         if (doc.exists) {
                             const userData = doc.data();
                             const now = new Date();
-                            // แปลง Timestamp ใน Firestore เป็น Date Object เพื่อเปรียบเทียบ
-                            const expiry = userData.expiryDate.toDate(); 
                             
-                            // 3. ตรวจสอบวันหมดอายุ
-                            if (expiry < now) {
-                                // บัญชีหมดอายุ!
+                            // ตรวจสอบวันหมดอายุ (expiryDate)
+                            let isExpired = false;
+                            if (userData.expiryDate && typeof userData.expiryDate.toDate === 'function') {
+                                const expiry = userData.expiryDate.toDate(); 
+                                if (expiry < now) {
+                                    isExpired = true;
+                                }
+                                var expiryDateStr = expiry.toLocaleDateString('th-TH');
+                            } else {
+                                // หากไม่มี field หรือไม่ถูกต้อง ให้ถือว่าไม่หมดอายุ และแสดงเป็น 'ไม่ระบุ'
+                                expiryDateStr = 'ไม่ระบุ';
+                            }
+                            
+                            if (isExpired) {
                                 alert("บัญชีของคุณหมดอายุแล้ว กรุณาต่ออายุ");
                                 auth.signOut(); // บังคับออกจากระบบ
-                                window.location.href = 'index.html'; // กลับไปหน้า Login
-                            } else {
-                                // เข้าถึงได้: แสดงข้อความต้อนรับและเริ่มโหลดข้อมูล
-                                const expiryDateStr = expiry.toLocaleDateString('th-TH');
-                                document.getElementById('welcomeMessage').innerHTML = 
-                                    `ยินดีต้อนรับ <strong>${userData.email}</strong>! (สิทธิ์: ${userData.role}, หมดอายุ: ${expiryDateStr})`;
-                                
-                                // **TODO: เรียกฟังก์ชันเพื่อโหลดข้อมูล (เช่น loadItems())**
-                                // loadItems();
-                                
+                                window.location.href = 'index.html'; 
+                                return;
                             }
+                            
+                            // เข้าถึงได้: แสดงข้อความต้อนรับและเริ่มโหลดข้อมูล
+                            document.getElementById('welcomeMessage').innerHTML = 
+                                `ยินดีต้อนรับ <strong>${userData.email || user.email}</strong>! (สิทธิ์: ${userData.role}, หมดอายุ: ${expiryDateStr})`;
+                            
+                            // **เริ่มโหลดรายการสินค้าเมื่อยืนยันสิทธิ์เรียบร้อย**
+                            loadItems();
+                            
                         } else {
-                            // ไม่พบข้อมูลเสริมใน Firestore (ควรเกิดขึ้นได้ยาก)
+                            // ไม่พบข้อมูลเสริมใน Firestore (ใน Collection users)
+                            alert("ไม่พบข้อมูลผู้ใช้ในระบบ กรุณาติดต่อผู้ดูแล");
                             auth.signOut();
                             window.location.href = 'index.html';
                         }
                     })
                     .catch(error => {
                         console.error("Error fetching user data:", error);
+                        alert("เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: " + error.message);
                         auth.signOut();
                         window.location.href = 'index.html';
                     });
 
             } else {
                 // ผู้ใช้ไม่ได้ Login
-                alert("กรุณาเข้าสู่ระบบก่อนจึงจะเข้าถึงหน้านี้ได้");
                 window.location.href = 'index.html'; // กลับไปหน้า Login
             }
         });
 
-        // -----------------------------------------------------
-        // 4. ตัวอย่างฟังก์ชันสำหรับดึงข้อมูลจาก Firestore (CRUD: Read)
-        // -----------------------------------------------------
+        // *****************************************************
+        // ส่วนจัดการ CRUD สำหรับข้อมูลสินค้า (Collection: items)
+        // *****************************************************
         
-        /* function loadItems() {
+        // 1. READ & LIST: ดึงและแสดงข้อมูล (ใช้ onSnapshot เพื่ออัปเดตอัตโนมัติ)
+        function loadItems() {
             const itemList = document.getElementById('itemList');
             itemList.innerHTML = '<li>กำลังโหลดข้อมูล...</li>'; 
 
-            // ตัวอย่างการดึงข้อมูลทั้งหมดจาก Collection ชื่อ 'items'
-            db.collection("items").get().then((querySnapshot) => {
-                itemList.innerHTML = ''; // เคลียร์ข้อความ "กำลังโหลด"
+            db.collection("items").onSnapshot((querySnapshot) => {
+                itemList.innerHTML = ''; // เคลียร์รายการเดิม
+                
                 if (querySnapshot.empty) {
                     itemList.innerHTML = '<li>ยังไม่มีข้อมูลสินค้า</li>';
                     return;
                 }
                 
                 querySnapshot.forEach((doc) => {
-                    // สร้างรายการ <li> แสดงข้อมูล
                     const itemData = doc.data();
+                    const expiryDateStr = itemData.expiryDate ? itemData.expiryDate.toDate().toLocaleDateString('th-TH') : 'ไม่ระบุ';
+                    
+                    // สร้าง <li> แสดงข้อมูลพร้อมปุ่ม Delete และ Update
                     const li = document.createElement('li');
-                    li.textContent = `รหัส: ${doc.id}, ชื่อ: ${itemData.name}, ราคา: ${itemData.price} บาท`;
+                    li.style.marginBottom = '10px';
+                    li.style.borderBottom = '1px dashed #ccc';
+                    li.style.paddingBottom = '5px';
+                    li.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>
+                                **${itemData.name}** (รหัส: ${doc.id}) | ราคา: ${itemData.price} บาท | หมดอายุ: ${expiryDateStr}
+                            </span>
+                            <div>
+                                <button onclick="promptUpdateExpiry('${doc.id}', '${expiryDateStr}')" class="action-btn edit-btn">แก้ไขวันหมดอายุ</button>
+                                <button onclick="deleteItem('${doc.id}')" class="action-btn delete-btn">ลบ Key</button>
+                            </div>
+                        </div>
+                    `;
                     itemList.appendChild(li);
                 });
-            }).catch(error => {
+            }, error => {
                 console.error("Error loading items:", error);
-                itemList.innerHTML = '<li>เกิดข้อผิดพลาดในการโหลดข้อมูล</li>';
+                itemList.innerHTML = '<li>เกิดข้อผิดพลาดในการโหลดข้อมูล: โปรดตรวจสอบ Security Rules</li>';
             });
         }
-        */
 
+        // 2. CREATE: เพิ่มข้อมูลสินค้าใหม่ (Add Key)
+        function addItem() {
+            const name = document.getElementById('itemName').value;
+            const price = parseFloat(document.getElementById('itemPrice').value);
+            const expiryDateStr = document.getElementById('itemExpiryDate').value;
+
+            if (!name || isNaN(price) || !expiryDateStr) {
+                alert('กรุณากรอกข้อมูลสินค้าให้ครบถ้วน');
+                return;
+            }
+
+            const expiryDate = new Date(expiryDateStr);
+
+            db.collection("items").add({
+                name: name,
+                price: price,
+                // เก็บวันหมดอายุเป็น Firestore Timestamp
+                expiryDate: firebase.firestore.Timestamp.fromDate(expiryDate) 
+            })
+            .then(() => {
+                alert("เพิ่มสินค้าสำเร็จ!");
+                // ล้างฟอร์ม
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemPrice').value = '';
+                document.getElementById('itemExpiryDate').value = '';
+            })
+            .catch((error) => {
+                console.error("Error adding document: ", error);
+                alert("เกิดข้อผิดพลาดในการเพิ่มสินค้า: " + error.message);
+            });
+        }
+
+        // 3. DELETE: ลบข้อมูลสินค้า (Delete Key)
+        function deleteItem(docId) {
+            if (!confirm('คุณแน่ใจหรือไม่ที่จะลบสินค้านี้?')) {
+                return;
+            }
+
+            db.collection("items").doc(docId).delete()
+                .then(() => {
+                    alert("ลบสินค้าสำเร็จ!");
+                })
+                .catch((error) => {
+                    console.error("Error removing document: ", error);
+                    alert("เกิดข้อผิดพลาดในการลบสินค้า: " + error.message);
+                });
+        }
+        
+        // 4. UPDATE: แก้ไขวันหมดอายุ
+        function promptUpdateExpiry(docId, currentExpiry) {
+            // ใช้ prompt เพื่อรับข้อมูลวันหมดอายุใหม่
+            const newDateStr = prompt(`ป้อนวันหมดอายุใหม่ (ปัจจุบัน: ${currentExpiry}) ในรูปแบบ YYYY-MM-DD`, new Date().toISOString().substring(0, 10));
+
+            if (newDateStr) {
+                const newDate = new Date(newDateStr);
+                // ตรวจสอบความถูกต้องของรูปแบบวันที่
+                if (isNaN(newDate) || newDateStr.length < 8) {
+                    alert('รูปแบบวันที่ไม่ถูกต้อง กรุณาใช้ YYYY-MM-DD');
+                    return;
+                }
+
+                db.collection("items").doc(docId).update({
+                    expiryDate: firebase.firestore.Timestamp.fromDate(newDate)
+                })
+                .then(() => {
+                    alert("แก้ไขวันหมดอายุสำเร็จ!");
+                })
+                .catch((error) => {
+                    console.error("Error updating expiry date: ", error);
+                    alert("เกิดข้อผิดพลาดในการแก้ไขวันหมดอายุ: " + error.message);
+                });
+            }
+        }
     </script>
 </body>
 </html>
